@@ -7,6 +7,7 @@
 - [OKOSPOINTEREK](#okospointerek)
   - [unique_ptr](#unique_ptr)
   - [shared_ptr](#shared_ptr)
+- [LAMBDA FÜGGVÉNYEK](#lambda-függvények)
 
 # Bevezetés
 
@@ -161,3 +162,5 @@ int main() {
     */
 }
 ~~~
+
+# Lambda függvények
