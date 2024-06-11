@@ -1,0 +1,6 @@
+{
+  "MD013": false,
+  "no-emphasis-as-heading": false,
+  "code-fence-style": { "style": "tilde" },
+  "single-h1": false
+}
