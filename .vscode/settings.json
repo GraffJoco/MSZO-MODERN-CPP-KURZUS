@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "print": "cpp",
-        "xstring": "cpp"
+        "xstring": "cpp",
+        "algorithm": "cpp"
     }
 }

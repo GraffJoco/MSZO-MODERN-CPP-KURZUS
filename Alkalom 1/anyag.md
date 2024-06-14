@@ -8,6 +8,8 @@
   - [unique_ptr](#unique_ptr)
   - [shared_ptr](#shared_ptr)
 - [LAMBDA FÜGGVÉNYEK](#lambda-függvények)
+  - [Lambdák alapjai](#lambdák-alapjai)
+  - [Lambdák és az STL tárolók](#lambdák-és-az-stl-tárolók)
 
 # Bevezetés
 
@@ -164,3 +166,108 @@ int main() {
 ~~~
 
 # Lambda függvények
+
+## Lambdák alapjai
+
+Volt már olyan, hogy egy függvényt csak egy másik függvényen belül akartál használni? Akár egy algoritmus alapján törölöni, szortísozni, módosítani adatsort? Erre vannak az ú.n. lambda függvények, melyekkel függvényeket akárhol hozhatunk létre, és akárhogy fel tudjuk használni, pl.: paraméterként.  
+Maguk a lambdák a következő szintaxissal rendelkeznek:
+
+~~~C++
+#include <print>
+
+auto lambda = [/* megfogott valtozok*/] (/*parameterek*/) {
+  // kód, ha van return, olyan típusú, különben void 
+};
+
+int main() {
+    // Példa: prím-e az érték?
+    auto is_prime = [] (const int x) {
+        const auto limit = x / 2 + 1;
+
+        if (x == 2) return true;
+        if (x < 2 || x % 2 == 0) return false;
+
+        for (auto i = 3; i < limit; i += 2)
+            if (x % i == 0) return false;
+        
+        return true;
+    };
+
+    std::println("{}", is_prime(5)); // true
+    std::println("{}", is_prime(6)); // false
+}
+~~~
+
+A szögletes zárójeleknek egy speciális szerepe van, ezzel lokális változókat lehet a függvénynek átadni vagy értékként, vagy referenciaként. De C++20 óta lehet benne olyan változókat is létrehozni, melyek hívások között megmaradnak (mint a statikus változók). Ezeket a változókat lehet módosítani, ha a kapcsos zárójel elé helyezzük a `mutable` kulcsszót.
+
+~~~C++
+#include <print>
+
+int main() {
+    int hivasok = 0;
+
+    // hivas_szam: belső változó, 0-tól indul
+    // &hivasok: hivasok változó referenciaként használható lambdában, ezért módosítható is
+    auto hanyszor_hivtak = [hivas_szam = 0, &hivasok] () mutable {
+        hivas_szam++; // módosítható, mert mutable
+        hivasok = hivas_szam;
+        std::println("{}. hivas", hivas_szam);
+    };
+
+    for (auto i = 0; i < 10; i++) {
+        hanyszor_hivtak();
+    }
+
+    std::println("Összesen {} hivas", hivasok);
+}
+~~~
+
+## Lambdák és az STL tárolók
+
+A lambdáknak az egyik legnagyobb előnye, hogy STL tárolókon (pl.: `array`, `vector`, `list`) lehet őket felhasználni bizonyos algoritmusokban az `<algorithm>` könyvtár felhasználásával. A lambdákat ilyenkor nem kell változóban tárolni, azonnal lehet használni paraméterként.  
+[Ezekből elképesztően sok van](https://en.cppreference.com/w/cpp/header/algorithm), de itt egy példa pár hasznosabbról:
+
+~~~C++
+#include <print>
+#include <vector>
+#include <algorithm>
+
+int main() {
+    std::vector<double> adatok = {-2.0, 7.9, 2.5, -8.9, 100.9};
+
+    // std::for_each: lambdát futtat a tároló minden elemén
+    std::for_each(adatok.begin(), adatok.end(), [index = 0](const auto ertek) mutable {
+        std::println("{}. ertek: {}", index, ertek);
+        index++;
+    });
+
+    // std::find_if: megkeresi az első elemet, amire igaz a lambda
+    auto nagyobb_mint_5 = std::find_if(adatok.begin(), adatok.end(), [](auto ertek) {
+        return ertek > 5;
+    });
+
+    std::println("Elso jo elem: {}", *nagyobb_mint_5);
+
+    // std::sort: megadott feltétel alapján szortíroz
+    // lambda paraméterek: két elem, visszaadja, hogy fel kell-e őket cserélni
+    // példa: négyzetes nagyság alapján szűrés
+    std::sort(adatok.begin(), adatok.end(), [](const auto a, const auto b) {
+        return a * a > b * b;
+    });
+
+    std::for_each(adatok.begin(), adatok.end(), [](const auto ertek) {
+        std::print("{} ", ertek);
+    });
+    std::println("");
+
+    // std::any_of: igaz-e a feltétel legalább 1 elemre?
+    // param: elem, visszaadja, hogy megfelel-e
+    auto megfelel = std::any_of(adatok.begin(), adatok.end(), [](const auto ertek) {
+        return ertek > 10;
+    });
+    if (megfelel)
+        std::println("Megfelel");
+    else
+        std::println("Nem felel meg");
+}
+~~~
