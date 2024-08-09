@@ -62,6 +62,7 @@ Nem tetszik a `cout` és egy okosabb verziót akarsz a printf-ből? Erre van C++
 
 ~~~C++
 #include <print>
+#include <vector>
 
 using namespace std; // különben std::println
 
@@ -82,6 +83,10 @@ int main() {
     // Kiirt ertek hosszanak megadasa
     println("Ez 5 karakter: {:5}", adat);
     println("Ez is: {:5.3}", ertek);
+
+    // Még STL tárolókat is ki tud írni (amire se cout, se printf nem képes)
+    vector<int> adatok = {1, 2, 4, 8};
+    println("Adatok: {}", adatok);
 }
 ~~~
 
