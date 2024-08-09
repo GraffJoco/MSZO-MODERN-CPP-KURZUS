@@ -20,7 +20,7 @@ Ebben a kurzusban számos új, hasznos dolgot kívánok átadni, melyek tartalma
 Nem minden szabványos dolog van engedélyezve alapból az egyes fordítókban, pl.: Visual Studio alapból C++14-et használ. Ha ZH-n ennél újabbat próbálsz beadni, abból baj is lehet!  
 Az új szabványokat a következő módon lehet beállítani fordítótól függően:
 
-- gcc és clang: fordító utasításba be kell illeszteni azt, hogy `std=SZABVANY`, mi esetünkben `std=c++23`
+- gcc és clang: fordító utasításba be kell illeszteni azt, hogy `-std=SZABVANY`, mi esetünkben `-std=c++23`
 - Visual Studio: Menjetek a projekt ($PROJEKTNEV \Rightarrow Properties$) beállításokba, és állítsátok a `C++ Language Standard` beállítást `Preview`-re
 
 ![C++ szabvány beállítása](kepek/VS_cpp23_beallitasa.png)
