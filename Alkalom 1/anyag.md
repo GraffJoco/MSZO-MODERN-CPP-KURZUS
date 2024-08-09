@@ -85,6 +85,51 @@ int main() {
 }
 ~~~
 
+## optional
+
+Írtál már olyan függvényt, ami nem biztos, hogy sikeresen fut le? Ilyenkor általában két, szuboptimális megoldást szoktak alkalmazni: vagy egy lehetetlen értéket (pl.: -1 vagy `nullptr`) adnak vissza, és *remélik*, hogy a függvény hívója lekezeli az esetleges hibát, vagy a `throw` kulcsszóval egy hibát dobnak, és feltételezik, hogy a hívás egy `try` blokkban van, ahol erre a specifikus errorra is van írva `catch`. Egyiknél sem mindig egyértelmű, hogy kaphat-e futási errort a felhasználó a függvényre nézve, és lehet, hogy nem kezelik. Kilépni a programból minden error esetén sem jó megoldás, mert nem minden hiba olyan kritikus, hogy le kell állítani az egészet. Ezért implementálták az `optional<T>` osztályt.  
+Az `optional<T>` egyszerű logikával működik: egy függvény, ami ezt ad vissza vagy egy `T` típusú értéket kap, vagy egy üres hibaértéket. Ahhoz, hogy a programozó akármit is kapjon vissza, mindkét esetet kezelni kell, de ez nagyon egyszerű tud lenni: vagy if-ben nézi, hogy jó-e, vagy ha hiba esetén egy másik értéket használna, csak hívja a `.value_or()` függvényt.
+
+~~~C++
+#include <optional>
+#include <print>
+
+std::optional<int> fibonacci(int val) {
+    // ha val < 0, akkor nincs érték, tehát üres {} értéket ad vissza
+    if (val < 0) {
+        return {};
+    }
+
+    // sikernél sima return elég
+    if (val < 2) {
+        return val;
+    }
+
+    // ha garantált, hogy van érték, akkor .value() visszaadja
+    return fibonacci(val - 1).value() + fibonacci(val - 2).value();
+}
+
+int main() {
+    const int ertek = 5;
+
+    // nem kritikus kód, ha az érték hibás, akkor használjunk egyet helyette
+    // ilyenkor azonnal lehet int-be tárolni
+    const int eredmeny = fibonacci(ertek).value_or(1);
+
+    std::println("Eredmeny: {}", eredmeny);
+
+    // hibás érték keresése kritikus kódrészletben
+    const auto kritkus = fibonacci(-7);
+
+    if (!kritkus) {
+        std::println("KRITIKUS ERROR! Rossz ertek volt a fib fuggvenynek adva!");
+        exit(-1);
+    }
+
+    std::println("Minden jol lefutott, a fontos eredmeny: {}", kritkus.value());
+}
+~~~
+
 # Okospointerek
 
 Veszítettél már pontot prog ZH-n, mert elfelejtetted a `free` vagy `delete` hívását? Esetleg kicímeztél, mert balesetből kétszer hívtad? A C++11-től kezdve van erre megoldás: az okospointer!  
@@ -230,6 +275,7 @@ A lambdáknak az egyik legnagyobb előnye, hogy STL tárolókon (pl.: `array`, `
 ~~~C++
 #include <print>
 #include <vector>
+#include <array>
 #include <algorithm>
 
 int main() {
@@ -260,7 +306,7 @@ int main() {
     });
     std::println("");
 
-    // std::any_of: igaz-e a feltétel legalább 1 elemre?
+    // std::any_of: igaz-e a feltétel legalább 1 elemre
     // param: elem, visszaadja, hogy megfelel-e
     auto megfelel = std::any_of(adatok.begin(), adatok.end(), [](const auto ertek) {
         return ertek > 10;
@@ -269,5 +315,26 @@ int main() {
         std::println("Megfelel");
     else
         std::println("Nem felel meg");
+    
+    // std::transform: Tároló elemeit módosítja lambda szerint
+    // ha a harmadik elem maga a tároló, helyben módosítja, ha nem
+    // máshol is lehet tárolni az eredményt
+    std::vector<int> ertekek = {1, -2, 3};
+    std::println("Ertekek eredetileg: {}", ertekek);
+
+    std::transform(ertekek.begin(), ertekek.end(), ertekek.begin(), [](const int val) {
+        return val * val;
+    });
+
+    std::println("Ertekek transform utan: {}", ertekek);
+
+    // más fajta tárolóba is lehet rakni az elemet
+    std::array<int, 20> eredmeny = {};
+
+    std::transform(ertekek.begin(), ertekek.end(), eredmeny.begin(), [](const int val) {
+        return val * 4;
+    });
+
+    std::println("STL tömbben: {}", eredmeny);
 }
 ~~~
