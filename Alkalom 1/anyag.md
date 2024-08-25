@@ -2,14 +2,16 @@
 
 - [BEVEZETÉS](#bevezetés)
 - [KISEBB ÚJÍTÁSOK](#kisebb-újítások)
-  - [auto kulcsszó](#auto-kulcsszó)
-  - [print és println](#print-és-println)
+  - [auto kulcsszó (C++11)](#auto-kulcsszó)
+  - [print és println (C++20)](#print-és-println)
 - [OKOSPOINTEREK](#okospointerek)
-  - [unique_ptr](#unique_ptr)
-  - [shared_ptr](#shared_ptr)
+  - [unique_ptr (C++11)](#unique_ptr)
+  - [shared_ptr (C++11)](#shared_ptr)
 - [LAMBDA FÜGGVÉNYEK](#lambda-függvények)
-  - [Lambdák alapjai](#lambdák-alapjai)
-  - [Lambdák és az STL tárolók](#lambdák-és-az-stl-tárolók)
+  - [Lambdák alapjai (C++11*)](#lambdák-alapjai)
+  - [Lambdák és az STL tárolók (C++11*)](#lambdák-és-az-stl-tárolók)
+
+\* - *A fő funkciók az adott szabvány részei, de egyes kisebb elemek csak újabb verziókban elérhetőek*  
 
 # Bevezetés
 
