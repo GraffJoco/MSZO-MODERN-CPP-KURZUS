@@ -2,7 +2,8 @@
 
 - [BEVEZETÉS](#bevezetés)
 - [SABLONOK A C++-BAN](#sablonok-a-c-ban)
-    - [SABLONOK ALAPJAI](#sablonok-alapjai)
+  - [SABLONOK ALAPJAI](#sablonok-alapjai)
+  - [SABLONOK SZABÁLYOZÁSA](#sablonok-szabályozása)
 
 # Bevezetés
 
@@ -16,7 +17,7 @@ A sablonok a C++ egyik legrégebbi, de legerősebb újítása: egyszer megírt o
 
 Sablont osztályból a `template` kulcsszóval lehet csinálni, ahol relációs jelek között a fordítási paramétereket lehet definiálni:
 
-```C++
+~~~C++
 #include <print>
 
 // typename vagy class: típus, amit be lehet helyettesíteni
@@ -33,9 +34,165 @@ struct vektor {
 };
 
 int main() {
+    // T helyére akármit be lehet helyettesíteni
     vektor<int> egyik(1, 2);
     vektor<double> masik(-9.8, 3.14159);
 
     std::print("Egyik hossza: {}\nMasik hossza: {}", egyik.hossz(), masik.hossz());
 }
-```
+~~~
+
+Ezt az eszközt gyakran típusok behelyettesítésére használják, de akár sima értékeket (pl.: `int`, `double`) is lehet felhasználni. Ennek egy nagy haszna az, hogy fordításkor ismert mérettel lehet statikus tömböket használni az osztályban, nem kell pointerezni.
+
+~~~C++
+#include <print>
+#include <string>
+
+template <typename T, size_t Meret>
+class tomb {
+private:
+    // Mivel Meretet ismerjük fordításkor, ezért
+    // lehet statikus tömböt csinálni vele
+    T data[Meret];
+
+public:
+    // nem kell Meretet tárolni, elég egy függvényt
+    // írni, ami visszaadja az értékét
+    inline const size_t meret() const { return Meret; }
+
+    // Referenciát ad vissza, hogy a tömbérték módosítható legyen
+    inline T& operator[](size_t index) {
+        return data[index];
+    }
+
+    void print() const {
+        std::print("[");
+        for (size_t i = 0; i < Meret - 1; i++) {
+            std::print("{}, ", data[i]);
+        }
+        if (Meret != 0) {
+            std::print("{}", data[Meret - 1]);
+        }
+        std::print("]");
+    }
+};
+
+int main() {
+    tomb<double, 3> egyik;
+    egyik[0] = 1.2;
+    egyik[1] = 6.9;
+    egyik[2] = -0.24;
+
+    egyik.print();
+    std::println("\nA tomb {} byte, ami {} elem * {} byte per elem", sizeof(egyik), 3, sizeof(double));
+
+    tomb<std::string, 2> masik;
+
+    masik[0] = "Ezt is lehet";
+    masik[1] = "Akarmilyen tipus hasznalhato";
+
+    masik.print();
+}
+~~~
+
+Függvényekből is lehet sablont csinálni, ugyanazzal a szintaxissal. Az újabb szabványok egyik előnye, hogy gyakran a paraméterekből a sablonparamétereket is kitalálja.  
+Az előző példát ezek alapján lehet bővíteni:
+
+~~~C++
+#include <print>
+#include <string>
+
+template <typename T, size_t Meret>
+class tomb {
+private:
+    // Mivel Meretet ismerjük fordításkor, ezért
+    // lehet statikus tömböt csinálni vele
+    T data[Meret];
+
+public:
+    // nem kell Meretet tárolni, elég egy függvényt
+    // írni, ami visszaadja az értékét
+    inline const size_t meret() const { return Meret; }
+
+    inline T& operator[](size_t index) {
+        return data[index];
+    }
+
+    inline const T& operator[](size_t index) const {
+        return data[index];
+    }
+
+    void print() const {
+        std::print("[");
+        for (size_t i = 0; i < Meret - 1; i++) {
+            std::print("{}, ", data[i]);
+        }
+        if (Meret != 0) {
+            std::print("{}", data[Meret - 1]);
+        }
+        std::print("]");
+    }
+};
+
+template <typename T, size_t Meret>
+T szumma(const tomb<T, Meret>& adatok) {
+    T sum{};
+
+    for (size_t i = 0; i < Meret; i++) {
+        sum += adatok[i];
+    }
+
+    return sum;
+}
+
+int main() {
+    tomb<double, 3> egyik;
+    egyik[0] = 1.2;
+    egyik[1] = 6.9;
+    egyik[2] = -0.24;
+
+    egyik.print();
+    std::println("\nA tomb {} byte, ami {} elem * {} byte per elem", sizeof(egyik), 3, sizeof(double));
+
+    // nem kötelező <double, 3> kiírása, paraméterből ki tudja találni a fordító
+    std::println("Szumma: {}", szumma(egyik));
+
+    tomb<std::string, 2> masik;
+
+    masik[0] = "Ezt is lehet";
+    masik[1] = "Akarmilyen tipus hasznalhato";
+
+    masik.print();
+    std::println("\n{}", szumma<std::string>(masik));
+}
+~~~
+
+## Sablonok szabályozása
+
+Az előző példák bemutatták a sablonok előnyeit, viszont van egy hátrány: ha a behelyettesített típus errorhoz vezet, gyakran oldal méretű errorokat ad, amiket lehetetlen debuggolni.
+
+Például, ha az előző fejezet `vektor` példaosztályába stringet helyettesítünk be, a következő errort kapjuk:
+
+![Legértelmesebb C++ error](kepek/cpp_sablon_error.png)
+
+Ez csak azt mondja, hogy a `vektor<std::string>::hossz()` függvényt nem tudta lefordítani, nem pedig azt, hogy $T$-nek számértéknek kellene lennie. Ebben az esetben még valamennyire érthető, de nagyobb osztályok és többréteges behelyettesítéseknél már nem.  
+
+Azért, hogy meg lehessenek szabva szabályok a behelyettesítéseknek, több szabvályban különböző új dolgokat adtak a nyelvhez, hogy - amennyiben valami ezeket a szabályokat megszegi - érthető errorokat kapjon a fejlesztő. Ezek közül a `requires` kulcsszóról, és a `<type_traits>` könyvtárról lesz szó.  
+
+A `requires` kulcsszó alapján egyes osztályoknak, függvényeknek vagy tagfüggvényeknek egy ifhez hasonló módon lehet megadni, hogy a paraméterek alapján szabad-e lefordítani.  
+
+A `<type_traits>` könyvtár engedélyezi, hogy osztályok tulajdonságait igen/nem értékké alakítsa a fordító.
+
+Például, egy vektornál azt akarjuk, hogy az adatok, amiket tárol, számok legyenek. Tehát ha azt mondjuk, hogy $T$ vagy egész (`is_integral_v`) vagy lebegőpontos (`is_floating_point_v`) típus:
+
+~~~C++
+template <typename T>
+requires (std::is_floating_point_v<T> || std::is_integral_v<T>)
+class vektor2 {
+    // ...
+};
+~~~
+
+Ha ebbe az osztályba stringet helyettesítünk be, akkor egy egyszerűbb errort kapunk, hogy a vektor korlátainak nem felel meg a `T = std::string` behelyettesítés:
+
+![requires kulcsszó által generált error](kepek/requires_error.png)
