@@ -2,8 +2,8 @@
 
 - [BEVEZETÉS](#bevezetés)
 - [SABLONOK A C++-BAN](#sablonok-a-c-ban)
-  - [SABLONOK ALAPJAI](#sablonok-alapjai)
-  - [SABLONOK SZABÁLYOZÁSA](#sablonok-szabályozása)
+  - [SABLONOK ALAPJAI (C++98)](#sablonok-alapjai)
+  - [SABLONOK SZABÁLYOZÁSA (C++20)](#sablonok-szabályozása)
 
 # Bevezetés
 
@@ -196,3 +196,49 @@ class vektor2 {
 Ha ebbe az osztályba stringet helyettesítünk be, akkor egy egyszerűbb errort kapunk, hogy a vektor korlátainak nem felel meg a `T = std::string` behelyettesítés:
 
 ![requires kulcsszó által generált error](kepek/requires_error.png)
+
+Amennyiben ilyen feltételeket többször használunk, vagy az errort olvashatóbb formába akarjuk alakítani, akkor tudunk egy `concept`-et írni. Ezek a kifejezések nem csak a `type_traits` tulajdonságait tudják felhasználni, hanem ha adsz nekik egy példakódot, akkor az alapján, hogy egy adott típust behelyettesítve ad-e errort a mintakód, tudja eldönteni, hogy megfelelnek-e a template paraméterek.  
+Például, ha egy számot akarunk kifejezésben leírni, a következő módokon is csinálhatjuk:
+
+~~~C++
+template <typename T>
+concept number = requires (T egyikSzam, T masikSzam) {
+    double(egyikSzam); // double-re alakithatonak kell lennie
+    // Alap matematikai műveleteknek meg kell felelnie
+    // ha ezek egyike nem fordul le, akkor T nem felel meg a szám koncepciónak
+    egyikSzam + masikSzam;
+    egyikSzam - masikSzam;
+    egyikSzam * masikSzam;
+    egyikSzam / masikSzam;
+    egyikSzam == masikSzam;
+    egyikSzam > masikSzam;
+    egyikSzam >= masikSzam;
+    egyikSzam < masikSzam;
+    egyikSzam <= masikSzam;
+};
+
+template <number T>
+struct vektor {
+    // ...
+};
+~~~
+
+Ha most próbálunk egy hibás típust (ezesetben stringet) behelyettesíteni, akkor a fordító jelzi nekünk, hogy a `std::string` nem felel meg a `number` kifejezésnek:
+
+![concept által generált C++ error](kepek/concept_error.png)
+
+A `concept` kifejezéseknek egyik előnye, hogy függvényekben elég `auto` kulcssó elé elhelyezni, és `requires` rész nélkül is garantálja a fordító, hogy minden korrekt:
+
+~~~C++
+auto abszolut(number auto szam) {
+    if (szam < 0) {
+        return 0 - szam;
+    } else {
+        return szam;
+    }
+}
+
+int main() {
+    std::print("{} {}", abszolut(-1.0), abszolut(2));
+}
+~~~
