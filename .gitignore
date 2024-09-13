@@ -1,3 +1,6 @@
 *.exe
 makefile
 minta.cpp
+*.s
+*.a
+*.asm

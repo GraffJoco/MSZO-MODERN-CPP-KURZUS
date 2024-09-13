@@ -3,6 +3,8 @@
         "print": "cpp",
         "xstring": "cpp",
         "algorithm": "cpp",
-        "array": "cpp"
+        "array": "cpp",
+        "variant": "cpp",
+        "tuple": "cpp"
     }
 }

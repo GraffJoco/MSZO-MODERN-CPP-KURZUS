@@ -4,6 +4,10 @@
 - [SABLONOK A C++-BAN](#sablonok-a-c-ban)
   - [SABLONOK ALAPJAI (C++98)](#sablonok-alapjai)
   - [SABLONOK SZABÁLYOZÁSA (C++20)](#sablonok-szabályozása)
+- [ALGEBRAI TÍPUSOK](#algebrai-típusok)
+  - [PAIR ÉS TUPLE (C++11*)](#pair-és-tuple)
+  - [VARIANT (C++17)](#variant)
+- [FORDÍTÁSI IDEJŰ PROGRAMOZÁS A CONSTEXPR KULCSSZÓVAL (C++14, C++17, C++20)](#fordítási-idejű-programozás-constexpr-el)
 
 # Bevezetés
 
@@ -242,3 +246,161 @@ int main() {
     std::print("{} {}", abszolut(-1.0), abszolut(2));
 }
 ~~~
+
+# Algebrai típusok
+
+## Pair és tuple
+
+Ha írtál már függvényt, ami több, mint 1 értéket adott vissza, akkor esély szerint olyan megoldásokat kellett alkalmazni, mint például egyik referencia paraméter módosítása. Emiatt gyakran nem egyértelmű, hogy mit csinál a program, nehezebben olvasható, és a referencia miatt már máshol kellett változót csinálni a függvényhívás miatt.  
+A `std::pair<T1, T2>` és `std::tuple<T...>` engedélyezi, hogy 2 (pair esetében) vagy több (tuple esetében) értéket adjatok vissza, amik nagyjából akármilyen típusuak lehetnek.
+
+~~~C++
+#include <tuple>
+#include <print>
+#include <vector>
+
+std::pair<double, double> minmax(const std::vector<double> tomb) {
+    if (tomb.empty()) { return { -NAN, -NAN }; }
+
+    double min = tomb[0], max = tomb[0];
+
+    for (size_t i = 1; i < tomb.size(); i++) {
+        if (tomb[i] > max) { max = tomb[i]; }
+        if (tomb[i] < min) { min = tomb[i]; }
+    }
+
+    // kapcsos zárójelben, vagy a std::make_pair függvénnyel lehet létrehozni pair-t
+    return {min, max};
+}
+
+int main() {
+    std::vector adatok = { 1.0, -9.8, 42.0, -721.10, 6.9, 98128.98 };
+    
+    double minAdat, maxAdat;
+
+    // Egyik módja a megoldás megszerzésének:
+    auto eredmeny = minmax(adatok);
+    minAdat = eredmeny.first;
+    maxAdat = eredmeny.second;
+
+    // Másik:
+    std::tie(minAdat, maxAdat) = minmax(adatok);
+
+    std::println("{} minimuma {}, maximuma {}", adatok, minAdat, maxAdat);
+}
+~~~
+
+C++17-től azonnal lehet frissen létrehozott változókba is értéket rakni tuple-ből:
+
+~~~C++
+// ...
+
+int main() {
+    std::vector adatok = { 1.0, -9.8, 42.0, -721.10, 6.9, 98128.98 };
+    
+    auto [minAdat, maxAdat] = minmax(adatok);
+
+    std::println("{} minimuma {}, maximuma {}", adatok, minAdat, maxAdat);
+}
+~~~
+
+A `tuple` is hasonló, csak ott ha az elemekhez hozzá akarunk férni, akkor a `std::get<V>` függvényt kell alkalmazni:
+
+~~~C++
+#include <tuple>
+#include <vector>
+#include <print>
+#include <cmath>
+#include <type_traits>
+#include <concepts>
+
+template <typename T>
+concept number = requires (T egyikSzam, T masikSzam) {
+    double(egyikSzam); // double-re alakithatonak kell lennie
+    // Alap matematikai műveleteknek meg kell felelnie
+    // ha ezek egyike nem fordul le, akkor T nem felel meg a szám koncepciónak
+    egyikSzam + masikSzam;
+    egyikSzam - masikSzam;
+    egyikSzam * masikSzam;
+    egyikSzam / masikSzam;
+    egyikSzam == masikSzam;
+    egyikSzam > masikSzam;
+    egyikSzam >= masikSzam;
+    egyikSzam < masikSzam;
+    egyikSzam <= masikSzam;
+};
+
+template <number T>
+std::tuple<double, T, T> statisztika(const std::vector<T>& adatok) {
+    if (adatok.empty()) { return {0, NAN, NAN}; }
+
+    double szumma = adatok[0];
+    T min = adatok[0], max = adatok[0];
+
+    for (const auto& i : adatok) {
+        szumma += double(i);
+        if (min > i) { min = i; }
+        if (max < i) { max = i; }
+    }
+
+    return {szumma / adatok.size(), min, max};
+}
+
+int main() {
+    const std::vector halmaz = {1.0, -9.81, 42.0, -9768.987};
+
+    auto stats = statisztika(halmaz);
+
+    std::println("Halmaz atlaga: {}\nMinimuma: {}\nMaximuma: {}", std::get<0>(stats), std::get<1>(stats), std::get<2>(stats));
+}
+~~~
+
+## Variant
+
+Amennyiben esettől függően változhat, hogy milyen típusokat ad vissza egy függvény, vagy egy osztálynak esettől függően változó típusú értékei lehetnek, `std::variant<T...>` típusú értéket hasznos alkalmazni. Amennyiben az egyik opció az, hogy nincs érték tárolva (hasonlóan az `optional<T>`-hez), az egyik lehetőségnek `std::monostate`-et írhatunk:
+
+~~~C++
+#include <variant>
+#include <print>
+#include <cmath>
+
+std::variant<std::monostate, double, std::pair<double, double>> masodfoku(double a, double b, double c) {
+    const double D = b * b - 4 * a * c;
+    const double epsilon = 1e-6;
+
+    // nincs valós megoldás
+    if (D < -epsilon) {
+        return std::monostate();
+    }
+
+    // egy valós megoldás van
+    if (abs(D) < epsilon) {
+        return -b / (2.0 * a);
+    }
+
+    // két valós megoldás
+    const double gyokD = sqrt(D);
+    
+    return std::make_pair(
+        (-b + gyokD) / (2.0 * a),
+        (-b - gyokD) / (2.0 * a)
+    );
+}
+
+int main() {
+    // próbáljuk megoldani az x^2 - x - 1 = 0 egyenletet!
+    const auto eredmeny = masodfoku(1, -1, -1);
+    
+    if (std::holds_alternative<std::monostate>(eredmeny)) {
+        std::println("Nincs megoldasa az egyenletnek!");
+    } else if (std::holds_alternative<double>(eredmeny)) {
+        std::println("Egy megoldas van, ami {}", std::get<double>(eredmeny));
+    } else {
+        std::println("Ket megoldas van: {}", std::get<std::pair<double, double>>(eredmeny));
+    }
+}
+~~~
+
+# Fordítási idejű programozás constexpr-el
+
+A C++ egyik legjelentősebb újítása a `constexpr`: fordítás alatt lehet kódot futtatni. Habár más nyelvekben is lehet például fordításkor képletet kiszámolni, itt ez annál jóval többre képes: egész algoritmusokat, függvényeket, osztályokat lehet fordításkor kiértékelni. [Például betűtípusok legenerálása, prezentációk generálása fordításkor](https://youtu.be/MdrfPSUtMVM?si=JKZoAvHud5LxsaJj).
