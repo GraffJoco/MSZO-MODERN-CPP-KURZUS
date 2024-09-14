@@ -8,6 +8,7 @@
   - [PAIR ÉS TUPLE (C++11*)](#pair-és-tuple)
   - [VARIANT (C++17)](#variant)
 - [FORDÍTÁSI IDEJŰ PROGRAMOZÁS A CONSTEXPR KULCSSZÓVAL (C++14, C++17, C++20)](#fordítási-idejű-programozás-constexpr-el)
+  - [CONSTEXPR ALAPOK (C++17)](#constexpr-alapok)
 
 # Bevezetés
 
@@ -403,4 +404,51 @@ int main() {
 
 # Fordítási idejű programozás constexpr-el
 
-A C++ egyik legjelentősebb újítása a `constexpr`: fordítás alatt lehet kódot futtatni. Habár más nyelvekben is lehet például fordításkor képletet kiszámolni, itt ez annál jóval többre képes: egész algoritmusokat, függvényeket, osztályokat lehet fordításkor kiértékelni. [Például betűtípusok legenerálása, prezentációk generálása fordításkor](https://youtu.be/MdrfPSUtMVM?si=JKZoAvHud5LxsaJj).
+A C++ egyik legjelentősebb újítása a `constexpr`: fordítás alatt lehet kódot futtatni. Habár más nyelvekben is lehet például fordításkor képletet kiszámolni, itt ez annál jóval többre képes: egész algoritmusokat, függvényeket, osztályokat lehet fordításkor kiértékelni. [Például betűtípusok legenerálása fordításkor](https://youtu.be/MdrfPSUtMVM?si=JKZoAvHud5LxsaJj).
+
+## constexpr alapok
+
+Minden kifejezés, ami a `constexpr` kulcsszóval van jelölve, két dolgot feltételez:
+
+- A kifejezés minden eleme ismert, vagy meghatározható fordításkor
+- A kiértékelt kifejezés lehet konstans
+
+Ha ezek teljesülnek, akkor a kulcsszó alkalmazásával egy változó, függvény, tagfüggvény, sablon, vagy akár lambda is fordításkor kiértékelhető.
+
+A legegyszerűbb példa két `constexpr` változó összeadása:
+
+![constexpr összeadás](kepek/constexpr1.png)
+
+Az alsó ablakban látható, hogy a két érték össze lett adva, impliciten átalakítva intre (mert az kell `main`-nek), és visszaadva a fő függvényben. [Ilyen tesztekhez ajánlom a GodBolt fordító tesztelő eszközt, online lehet tesztelni ott különböző fordítók viselkedését majdnem minden programnyelvben](https://godbolt.org/).
+
+Ezt függvényekre is lehet bővíteni, és az újabb verziókban a standard könyvtár jelentős része már `constexpr` kompatibilis:
+
+~~~C++
+#include <cmath>
+
+constexpr bool is_prime(int n) {
+    // <cmath> jelentős része constexpr új szabványokban
+    const int limit = sqrt(n) + 1;
+
+    if (n == 2) { return true; }
+    if (n == 1 || n % 2 == 0) { return false; }
+
+    for (int i = 3; i < limit; i++) {
+        if (n % i == 0) { return false; }
+    }
+
+    return true;
+}
+
+int main() {
+    return is_prime(5);
+}
+~~~
+
+Ha ellenőrizzük az assembly kódját, látható, hogy ezt is sikerült kiszámolnia, és 2 utasításra redukálnia a fordítónak
+
+~~~nasm
+main:
+        mov     eax, 1
+        ret
+~~~
