@@ -10,6 +10,7 @@
 - [FORDÍTÁSI IDEJŰ PROGRAMOZÁS A CONSTEXPR KULCSSZÓVAL (C++14, C++17, C++20)](#fordítási-idejű-programozás-constexpr-el)
   - [CONSTEXPR ALAPOK (C++14)](#constexpr-alapok)
   - [LAMBDÁK ÉS CONSTEXPR (C++17)](#lambdák-stl-és-constexpr)
+  - [CONSTEXPR FELTÉTELEK (C++17)](#constexpr-feltételek)
 
 # Bevezetés
 
@@ -458,6 +459,56 @@ main:
 
 Azt fontos megjegyezni, hogy egy `constexpr` függvény felhasználható futáskor is, mint egy sima függvény, ezért függvények esetében a kulcsszó használata szinte mindig ajánlott, mert nincs mit veszteni vele.
 
+Egy dolog, amire felhasználható a `constexpr` kettős természete (futáskor és fordításkor is létezik), amit a C-ben nem lehetett megtenni, stringek `switch`-ben kezelése. Ehhez egy úgy nevezett "*hash*" függvényt kell írni, aminek csak az a lényege, hogy a változó hosszal rendelkerű szöveget egy számmá redukáljuk, ami minden különböző bemenetre más eredményt ad. Ezt általában ide-oda dobált bitmágiával oldják meg az emberek (tényleg elég random bitműveleteket alkalmazni az esetek többségében, nem kell bitvarázslónak lenni):
+
+~~~C++
+#include <string>
+#include <iostream> // cin-hez kell
+#include <print>
+
+using namespace std;
+
+constexpr size_t hash_str(string str) {
+    const size_t hossz = str.length();
+
+    size_t hash = 0;
+
+    for (size_t i = 0; i < hossz; i++) {
+        // Random bitműveletek
+        // csak dobálj ide párat, előbb-utóbb csak működni fog
+        hash += size_t(str[i]) << (size_t(str[i]) % 32);
+    }
+
+    return hash;
+}
+
+int main() {
+    print("Szereted a tejet? ");
+
+    string res;
+    getline(cin, res);
+
+    switch (hash_str(res)) {
+    case hash_str("igen"):
+        print("Es a kakaot is? ");
+        getline(cin, res);
+        if (res == "azt is") {
+            println("Nagyon jo");
+        }
+        break;
+    case hash_str("laktozerzekeny vagyok"):
+        println("Megis mi a baj veled?");
+        break;
+    case hash_str("nem"):
+        println("Szomoruva tettel :(");
+        break;
+    default:
+        println("wut");
+        break;
+    }
+}
+~~~
+
 ## lambdák, STL és constexpr
 
 C++17 óta lambdák is lehetnek konstans kifejezések:
@@ -553,7 +604,9 @@ Amennyiben egy constexpr függvénnyel, vagy lambdával meg tudjuk használni az
 using namespace std;
 
 template <size_t n>
-consteval auto harom_n_plusz_egy() {
+constexpr auto harom_n_plusz_egy() {
+    // azonnal felhasznált constexpr lambda, hogy az érték garantáltan
+    // constexpr legyen (plusz így lehet konstans is)
     constexpr int iteracioszam = [](const int n) {
         int val = n, iters = 1;
 
@@ -567,7 +620,7 @@ consteval auto harom_n_plusz_egy() {
         }
 
         return iters;
-        }(n);
+    }(n);
 
     vector<int> vals = { n };
 
@@ -596,5 +649,66 @@ int main() {
     for (int i : eredmeny) {
         println("{}", i);
     }
+}
+~~~
+
+## constexpr feltételek
+
+A `constexpr` felhasználható abban a kapacitásban is, hogy a kód egyes részeit ki/be kapcsoljuk. Ehhez felhasználható az `if constexpr` feltétel. Ezen kívül a `static_assert` kulcszóval ellenőrizni lehet egy feltételt, és - amennyiben a feltétel hamis - a fordítás leáll.
+
+~~~C++
+#include <print>
+#include <vector>
+
+template <int val>
+constexpr int fib() {
+    static_assert(val >= 0, "Negativ Fibonacci szamot nem lehet meghatarozni!");
+
+    std::vector<int> vals = { 0, 1 };
+
+    for (int i = 2; i <= val; i++) {
+        vals.push_back(vals[i - 1] + vals[i - 2]);
+    }
+
+    return vals.back();
+}
+
+int main() {
+    constexpr int val = 5;
+
+    std::println("{}", fib<5>());
+
+    //std::println("{}", fib<-3>()); // Error: static_assert failed: 'Negativ Fibonacci szamot nem lehet meghatarozni!'
+}
+~~~
+
+`if constexpr` kombinálható a `std::visit` függvénnyel, és így optimálisan lehet kezelni egy `std::variant<T...>` típusait:
+
+~~~C++
+#include <variant>
+#include <print>
+#include <type_traits>
+
+int main() {
+    std::variant<double, int, char> ertek = 'a';
+
+    // auto mindenre hívódik
+    std::visit([](const auto& val) {
+        std::println("{}", val);
+        }, ertek);
+
+    // típus eldöntése constexpr iffel
+    std::visit([](auto val) {
+        // val típusának megszerzése
+        using T = decltype(val);
+
+        if constexpr (std::is_same_v<T, double>) {
+            std::println("Double {}", val);
+        } else if constexpr (std::is_same_v<T, int>) {
+            std::println("Int {}", val);
+        } else if constexpr (std::is_same_v<T, char>) {
+            std::println("Char {}", val);
+        }
+    }, ertek);
 }
 ~~~
