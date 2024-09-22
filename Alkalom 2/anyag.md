@@ -8,7 +8,8 @@
   - [PAIR ÉS TUPLE (C++11*)](#pair-és-tuple)
   - [VARIANT (C++17)](#variant)
 - [FORDÍTÁSI IDEJŰ PROGRAMOZÁS A CONSTEXPR KULCSSZÓVAL (C++14, C++17, C++20)](#fordítási-idejű-programozás-constexpr-el)
-  - [CONSTEXPR ALAPOK (C++17)](#constexpr-alapok)
+  - [CONSTEXPR ALAPOK (C++14)](#constexpr-alapok)
+  - [LAMBDÁK ÉS CONSTEXPR (C++17)](#lambdák-stl-és-constexpr)
 
 # Bevezetés
 
@@ -402,13 +403,15 @@ int main() {
 }
 ~~~
 
+Ennél jobb megoldás is van a `std::visit` függvénnyel, de először meg kell ismernünk pár más fogalmat is.
+
 # Fordítási idejű programozás constexpr-el
 
 A C++ egyik legjelentősebb újítása a `constexpr`: fordítás alatt lehet kódot futtatni. Habár más nyelvekben is lehet például fordításkor képletet kiszámolni, itt ez annál jóval többre képes: egész algoritmusokat, függvényeket, osztályokat lehet fordításkor kiértékelni. [Például betűtípusok legenerálása fordításkor](https://youtu.be/MdrfPSUtMVM?si=JKZoAvHud5LxsaJj).
 
 ## constexpr alapok
 
-Minden kifejezés, ami a `constexpr` kulcsszóval van jelölve, két dolgot feltételez:
+Minden kifejezés, ami a `constexpr` (constant expression, konstans kifejezés) kulcsszóval van jelölve, két dolgot feltételez:
 
 - A kifejezés minden eleme ismert, vagy meghatározható fordításkor
 - A kiértékelt kifejezés lehet konstans
@@ -451,4 +454,147 @@ Ha ellenőrizzük az assembly kódját, látható, hogy ezt is sikerült kiszám
 main:
         mov     eax, 1
         ret
+~~~
+
+Azt fontos megjegyezni, hogy egy `constexpr` függvény felhasználható futáskor is, mint egy sima függvény, ezért függvények esetében a kulcsszó használata szinte mindig ajánlott, mert nincs mit veszteni vele.
+
+## lambdák, STL és constexpr
+
+C++17 óta lambdák is lehetnek konstans kifejezések:
+
+~~~C++
+#include <array>
+#include <cstdint>
+#include <cmath>
+#include <print>
+
+// number koncepció előző pontból, fordításkor fut, lehet
+// constexpr algoritmusban felhasználni
+template <typename T>
+concept number = requires (T egyikSzam, T masikSzam) {
+    double(egyikSzam);
+    egyikSzam + masikSzam;
+    egyikSzam - masikSzam;
+    egyikSzam * masikSzam;
+    egyikSzam / masikSzam;
+    egyikSzam == masikSzam;
+    egyikSzam > masikSzam;
+    egyikSzam >= masikSzam;
+    egyikSzam < masikSzam;
+    egyikSzam <= masikSzam;
+};
+
+constexpr auto tomb_szumma = [](const auto& tomb) {
+    double szumma = 0;
+
+    for (const auto& i : tomb) {
+        szumma += i;
+    }
+
+    return szumma;
+};
+
+int main() {
+    std::array egyik = { 1, -9, 876, -256, 69 };
+    std::array masik = { -9.8, 7.8, 1.9872 };
+
+    return std::max(tomb_szumma(egyik), tomb_szumma(masik));
+}
+
+/*asm:
+main:
+    mov eax, 681
+    ret
+*/
+~~~
+
+Ezzel együtt a C++17 egy másik újítása az, hogy **sok STL tároló is lehet `constexpr`, de egy fontos korlátozással: dinamikusan foglalt memóriát statikussá kell alakítani, ha futáskor akarjuk felhasználni.** Mit jelent ez? Lehet `constexpr std::vector`-unk (ami egy dinamikus tömb), de ha futáskor is fel akarjuk használni, `std::array`-t (statikus tömböt) kell belőle csinálni.
+
+~~~C++
+#include <array>
+#include <vector>
+#include <print>
+
+// auto, mert függvényhívás elején a méret nem ismert
+template <size_t hany>
+constexpr auto fibek() {
+    std::vector<int> fibs = {0, 1};
+
+    for (int i = 2; i < hany; i++) {
+        fibs.push_back(fibs[i - 1] + fibs[i - 2]);
+    }
+
+    // Át kell másolni az adatokat egy arraybe, mert constexpr vector
+    // futáskor nem használható
+    std::array<int, hany> ret;
+    std::copy(fibs.begin(), fibs.begin() + hany, ret.begin());
+
+    return ret;
+}
+
+int main() {
+    // [0, 1, 1, 2, 3, 5, 13, 21, 34]
+    constexpr auto ertekek = fibek<10>();
+    std::println("{}", ertekek);
+}
+~~~
+
+Esetfüggően a kódszerkesztőben a végeredményt még a kód futtatása előtt is lehet látni:
+
+![constexpr Intellisense VS Code-ban](kepek/constexpr2.png)
+
+Amennyiben egy constexpr függvénnyel, vagy lambdával meg tudjuk használni az elemszámot, az is alkalmazható, mint a visszaadott tömb mérete:
+
+~~~C++
+#include <array>
+#include <vector>
+#include <print>
+
+using namespace std;
+
+template <size_t n>
+consteval auto harom_n_plusz_egy() {
+    constexpr int iteracioszam = [](const int n) {
+        int val = n, iters = 1;
+
+        while (val > 1) {
+            if (val % 2 == 1) {
+                val = val * 3 + 1;
+            } else {
+                val /= 2;
+            }
+            iters++;
+        }
+
+        return iters;
+        }(n);
+
+    vector<int> vals = { n };
+
+    int val = n;
+
+    while (val > 1) {
+        if (val % 2 == 1) {
+            val = val * 3 + 1;
+        } else {
+            val /= 2;
+        }
+
+        vals.push_back(val);
+    }
+
+    array<int, iteracioszam> ret;
+    copy(vals.begin(), vals.end(), ret.begin());
+
+    return ret;
+}
+
+int main() {
+    constexpr int hany = 351;
+    constexpr auto eredmeny = harom_n_plusz_egy<hany>();
+
+    for (int i : eredmeny) {
+        println("{}", i);
+    }
+}
 ~~~
