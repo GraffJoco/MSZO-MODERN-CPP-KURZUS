@@ -4,7 +4,11 @@
   - [LAMBDA KALKULUS ALAPJAI](#lambda-kalkulus-alapjai)
   - [TISZTA FÜGGVÉNYEK, MUTABILITÁS](#tiszta-függvények-mutabilitás)
 - [LAMBDÁK, ALGORITMUSOK A C++-BAN](#lambdák-algoritmusok-a-c-ban)
-  - [TISZTA LAMBDA FÜGGVÉNYEK](#tiszta-lambda-függvények)
+  - [TISZTA LAMBDA FÜGGVÉNYEK (C++11)](#tiszta-lambda-függvények)
+  - [STL ALGORITMUSOK (C++11)](#stl-algoritmusok)
+- [RANGES, VIEWS, FUNKCIONÁLIS C++ (C++20/C++23)](#ranges-views-funkcionális-c)
+  - [ITERÁTOR, RANGE, VIEW](#alapok-iterátor-range-view)
+    - [ITERÁTOR](#iterátor)
 
 # Bevezetés
 
@@ -57,7 +61,7 @@ Ahhoz, hogy a C++-ban tudjuk ezt a tudást alkalmazni, elő kell hozni az [első
 A lambda egy funktor (függvényként használható osztály), amit szabadon akárhol létrehozhatunk a következő szintaxissal:
 
 ~~~C++
-const auto lamdba = [/*megfogott értékek*/](/*paraméterek*/) {
+const auto lamdba = [/*megfogott értékek*/](/*paraméterek*/) -> /*visszaadott érték típusa (nem kötelező)*/ {
     // függvény elemek
 };
 ~~~
@@ -110,3 +114,76 @@ int main() {
     };
 }
 ~~~
+
+## STL Algoritmusok
+
+A C++ `<algorithm>` könyvtárával lambdákkal előre elkészített, performans algoritmusokat lehet hívni STL tárolókra.
+
+Például lehet egy szabály alapján törölni elemeket egy tárolóból:
+
+~~~C++
+#include <algorithm>
+#include <print>
+#include <vector>
+
+int main() {
+    std::vector adatok = { 1, -5, 9, -420, 3 };
+    // törli az elemeket, amik ennek megfelelnek
+    std::erase_if(adatok, [](const auto ertek) {
+        return ertek < 0;
+    });
+
+    std::println("{}", adatok);
+}
+~~~
+
+Nagyon sok fajta algoritmus van implementálva:
+
+- `std::for_each` egy lambdát hív a tároló minden elemén
+- `std::transform` átalakítja egy tároló elemeit egy lamdba alapján
+- `std::find_if` megkeres egy elemet, ami a lambdának megfelel
+- `std::erase_if` elemeket töröl egy lambda szerint (C++20)
+- `std::remove_if` elemeket töröl, de a tároló méretét nem csökkenti (ahhoz extra kód kell)
+- `std::sort` rendezi az elemeket
+- [és még sok, sok más is](https://en.cppreference.com/w/cpp/algorithm)
+
+Ez egy relatíve jó megoldás, és sokat segít, de ha több algoritmust akarsz kombinálni, eléggé szuboptimális, valamint ezek az algoritmusok gyakran nem tiszták, amiből baj lehet.  
+Ezért van C++20 óta a `ranges` könyvtár (amit C++23-ban jelentősen bővítettek, és még ennél is többet fognak).
+
+# Ranges, views, funkcionális C++
+
+## Alapok: iterátor, range, view
+
+Ahhoz, hogy a `<ranges>` által adott lehetőségeket kihasználjuk, meg kell ismerni pár alapfogalmat.  
+
+### Iterátor
+
+Ha MOO-ból szóbeliztél már, akkor ezt a fogalmat biztos hallottad, és esély szerint nagyon összezavarodtál miatta. Az iterátor nem egy nehéz fogalom, de *nehezen magyarázható*.  
+Az iterátorok a következők: minden féle STL tárolónak van egy kis segédosztálya, amivel egyesével az elemei bejárhatóak. Ezek az iterátorok. Amikor végig mész egy iteráló forral (pl.: `for (auto i : vec)`), akkor először az elején a program kér a tárolótól egy kezdőiterátort (`it`), minden ciklusban veszi az aktív elemét (`auto i = *it;`), és a végén növeli az iterátor pozíciót (`it++;`) amíg nem érünk a végére (`it != vec.end()`). Az egészet kifejtve egy iterátoros for ciklus a következő módon néz ki:
+
+~~~C++
+int main() {
+    std::vector adatok = { 1, -5, 9, -420, 3 };
+    
+    for (auto it = adatok.begin(); it != adatok.end(); it++) {
+        const auto i = *it;
+
+        std::println("{}", i);
+    }
+
+    // Ugyanaz, mint
+
+    for (auto i : adatok) {
+        std::println("{}", i);
+    }
+}
+~~~
+
+Tehát az iterátor a következőket tudja:
+
+- `tarolo.begin()`: visszaadja az első elem pozíciójának iterátorát
+- `tarolo.end()`: visszaadja az iterátort, ami a tároló végét jelöli
+- `*it`: visszaadja az iterátor pozíción lévő elemet
+- `it++`: megy a következő elemre
+
+Ez hasonló a pointeres tömbbejáráshoz még IPA-ról, egy különbséggel: mivel az iterátor osztály, a `++` operátor nem feltétlenül a memóriában ezutáni blokkra fog mutatni, tehát **nem memóriában lineárisan tárolt adatokat is be lehet járni** vele.
