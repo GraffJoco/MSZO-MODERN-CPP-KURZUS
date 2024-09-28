@@ -11,6 +11,8 @@
     - [ITERÁTOR](#iterátor)
     - [RANGE](#range)
     - [VIEW](#view)
+  - [FUNKCIONÁL PROGRAMOZÁS A `<RANGES>` KÖNYVTÁRRAL](#funkcionál-programozás-alapjai-a-ranges-könyvtárral)
+    - [STRINGDARABOLÁS SAJÁT SPLIT FÜGGVÉNNYEL](#stringdarabolás-saját-split-függvénnyel)
 
 # Bevezetés
 
@@ -150,7 +152,7 @@ Nagyon sok fajta algoritmus van implementálva:
 - [és még sok, sok más is](https://en.cppreference.com/w/cpp/algorithm)
 
 Ez egy relatíve jó megoldás, és sokat segít, de ha több algoritmust akarsz kombinálni, eléggé szuboptimális, valamint ezek az algoritmusok gyakran nem tiszták, amiből baj lehet.  
-Ezért van C++20 óta a `ranges` könyvtár (amit C++23-ban jelentősen bővítettek, és még ennél is többet fognak).
+Ezért van C++20 óta a `<ranges>` könyvtár (amit C++23-ban jelentősen bővítettek, és még ennél is többet fognak).
 
 # Ranges, views, funkcionális C++
 
@@ -161,7 +163,8 @@ Ahhoz, hogy a `<ranges>` által adott lehetőségeket kihasználjuk, meg kell is
 ### Iterátor
 
 Ha MOO-ból szóbeliztél már, akkor ezt a fogalmat biztos hallottad, és esély szerint nagyon összezavarodtál miatta. Az iterátor nem egy nehéz fogalom, de *nehezen magyarázható*.  
-Az iterátorok a következők: minden féle STL tárolónak van egy kis segédosztálya, amivel egyesével az elemei bejárhatóak. Ezek az iterátorok. Amikor végig mész egy iteráló forral (pl.: `for (auto i : vec)`), akkor először az elején a program kér a tárolótól egy kezdőiterátort (`it`), minden ciklusban veszi az aktív elemét (`auto i = *it;`), és a végén növeli az iterátor pozíciót (`it++;`) amíg nem érünk a végére (`it != vec.end()`). Az egészet kifejtve egy iterátoros for ciklus a következő módon néz ki:
+Az iterátorok a következők: minden féle STL tárolónak van egy kis segédosztálya, amivel egyesével az elemei bejárhatóak. Ezek az iterátorok.  
+Például amikor végig mész egy iteráló forral (`for (auto i : vec)`), akkor először az elején a program kér a tárolótól egy kezdőiterátort (`it`), minden ciklusban veszi az aktív elemét (`auto i = *it;`), és a végén növeli az iterátor pozíciót (`it++;`) amíg nem érünk a végére (`it != vec.end()`). Az egészet kifejtve egy iterátoros for ciklus a következő módon néz ki:
 
 ~~~C++
 int main() {
@@ -175,7 +178,7 @@ int main() {
 
     // Ugyanaz, mint
 
-    for (auto i : adatok) {
+    for (const auto i : adatok) {
         std::println("{}", i);
     }
 }
@@ -197,3 +200,139 @@ A range egy intervallumot fed le egy kezdő és egy végiterátor között: pl.:
 ### View
 
 A view kombinálja az iterátorokat és rangeket: lehet olyan speciális iterátorokat gyártani, amik nem csak az eredeti tárolónak egy alhalmazán megy át, de a bejárási sorrend és irány változtatható, sőt, leképező függvénnyel az aktív elemet át lehet alakítani. Ezt az egészet csak pár byte memóriáért cserébe képesek csinálni. Emellé ha egy konstans tárolón tiszta függvényekkel csináljuk az átalakításunkat, stabilan tudjuk ezeket mind megtenni.
+
+## Funkcionál programozás alapjai a `<ranges>` könyvtárral
+
+Most, hogy megértettünk minden szükséges fogalmat, ideje a `<ranges>` könyvtárat használni is.  
+A könyvtárral rangekből viewokat lehet csinálni azzal, hogy a könyvtár egyes utasításait egymás után hívjuk a `|` operátorral elválasztva:
+
+~~~C++
+#include <algorithm>
+#include <vector>
+#include <ranges>
+#include <print>
+
+int main() {
+    // sok namespace egymásban, így egyszerűbb elérni
+    namespace ranges = std::ranges;
+    namespace views = std::ranges::views;
+
+    const std::vector vals = { 1, -2, 5, 9, -8, -420 };
+
+    // új viewt csinálunk:
+    // 1. vesszük vals elemeit
+    // 2. views::filterrel kiszűrjük a pozitív értékeket
+    // 3. views::transformmal definiálunk egy átalakító fv-t
+    //    (vals-t nem módosítja)
+    auto atalakitva = vals
+        | views::filter([](const auto val) { return val > 0; })
+        | views::transform([](const auto val) { return val * val; });
+
+    for (const auto val : atalakitva) {
+        std::println("{}", val);
+    }
+
+    std::println("Ennek az egesznek a memoriaigenye {} byte volt", sizeof(atalakitva));
+}
+~~~
+
+Ezt futtatva látjuk, hogy a kód működik, és az átalakító view csak 32 byte memóriát foglal:
+
+![Első ranges demonstráció](kepek/rangeproba.png)
+
+Azért kell neki ilyen kevés memória, mert valójában csak `vals` helyét és az egyes leképező függvényeket kell ismernie. Ez a méret függvetlen attól, hogy hány elemünk van, csak a műveletek száma tudja növelni, de akkor is elhanyagolható marad.
+
+[A könyvtár számtalan műveletet, átalakítást és egyéb eszközt tartalmaz](https://en.cppreference.com/w/cpp/ranges), ezért itt csak párat fogok demonstrálni a legjobbakból.
+
+### Stringdarabolás saját split függvénnyel
+
+Az egyik dolog, ami minden fejlesztőnek hiányzik, aki magasabb szintű nyelvből jött, egy `split` függvény: adsz neki egy stringet, és hogy milyen elválasztó alapján daraboljon, és visszaad neked egy listát/tömböt a darabolt string elemeivel. Ezt a C++ alapból nem tudja, de pár sor kóddal tudjuk magunknak implementálni.  
+
+A következő módon tudjuk ezt implementálni:
+
+1. Csinálunk egy `split` függvényt, ami kér egy `std::string_view` szöveget darabolásra és egy elválasztó karaktert
+2. A `views::split` függvénnyel kapunk egy csomó range-t, ami tartalmazza az intervallumokat, amikből tudjuk az új stringeket létrehozni
+3. Egy `views::transform` függvénnyel a range-kből tudunk rendes stringeket csinálni
+4. A `ranges::to<T>` függvénnyel vektort csinálunk a string rangeből
+
+Gyakorlatban ez a következő módon néz ki:
+
+~~~C++
+#include <algorithm>
+#include <vector>
+#include <string>
+#include <ranges>
+#include <print>
+
+namespace ranges = std::ranges;
+namespace views = ranges::views;
+
+std::vector<std::string> split(const std::string_view from, const char delim) {
+    return from
+        | views::split(delim)
+        | views::transform([](const auto strrange) {
+            return std::string(strrange.begin(), strrange.end());
+        })
+        | ranges::to<std::vector>();
+}
+
+// Azonnal tesztelhetjük is, hogy minden működik-e
+int main() {
+    const std::string teszt = "Ez;Egy;Teszt;String";
+    const auto splitted = split(teszt, ';');
+
+    for (const auto& str : splitted) {
+        std::println("{}", str);
+    }
+}
+~~~
+
+### Súlyfüggvények bővülő adatsorokon
+
+Mechatronikában gyakori, hogy az utolsó $n$ mért pontra egy adott súlyfüggvényt kell rakni. Ezt az is tudja programozásban komplikálni, hogy az adatsorunk egy szabályzási folyamat során valós időben bővül úgy, hogy közben ebből az adatsorból azonnal egy súlyfüggvénnyel kell csinálnunk valamilyen kimeneti értéket.
+
+Ilyen esetekben kis problémát okozhatna az, hogy ha ezt funkcionálisan akarjuk leprogramozni, egyszerre két adatsoron kell átmennünk. Erre használható a `views::zip`, ami egy olyan view-t ad nekünk, aminek minden eleme egy tuple, ami tartalmazza az $n.$ értékét minden megadott view-nak. A visszakapott view mérete a legkisebb méret minden viewból, tehát nem lehet ebből kicímzés sem.
+
+Tehát a következőket kell elérni egy rendes súlyfüggvény létrehozásához:
+
+1. A bemeneteket (érték és súlyvektor) bezippelni, de az értékvektor view-jának sorrendjét először megfordítjuk, mert az utolsó $n$ érték kell nekünk
+2. A keletkezett tuple elemeit összeszorozzuk
+3. Az így létrehozott view elemeit szummázzuk a `ranges::fold_left` függvénnyel, és visszaadjuk az eredményt
+
+Így a következő módon nézhet ki egy funkcionális súlyfüggvény:
+
+~~~C++
+#include <algorithm>
+#include <vector>
+#include <string>
+#include <ranges>
+#include <print>
+
+namespace ranges = std::ranges;
+namespace views = ranges::views;
+
+double sulyozott(const std::vector<double>& ertekek, const std::vector<double>& sulyok) {
+    // súlyozott view létrehozása
+    const auto sulyertekek = views::zip(ertekek | views::reverse, sulyok)
+        | views::transform([](const std::tuple<double, double>& val) {
+            return std::get<0>(val) * std::get<1>(val);
+        });
+
+    // szumma kiszámolása
+    return ranges::fold_left(sulyertekek, 0.0, [](const double a, const double b) {
+        return a + b;
+    });
+}
+
+int main() {
+    const std::vector sulyok = { 2.0, -0.9, 0.5, 0.1 };
+    std::vector<double> ertekek;
+
+    // Bemenet: u[k] = epsilon[k]
+    for (int i = -2; i < 5; i++) {
+        ertekek.push_back(i >= 0 ? 1.0 : 0.0);
+
+        std::println("{:2}: {:.3}", i, sulyozott(ertekek, sulyok));
+    }
+}
+~~~
