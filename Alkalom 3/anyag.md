@@ -9,6 +9,8 @@
 - [RANGES, VIEWS, FUNKCIONÁLIS C++ (C++20/C++23)](#ranges-views-funkcionális-c)
   - [ITERÁTOR, RANGE, VIEW](#alapok-iterátor-range-view)
     - [ITERÁTOR](#iterátor)
+    - [RANGE](#range)
+    - [VIEW](#view)
 
 # Bevezetés
 
@@ -187,3 +189,11 @@ Tehát az iterátor a következőket tudja:
 - `it++`: megy a következő elemre
 
 Ez hasonló a pointeres tömbbejáráshoz még IPA-ról, egy különbséggel: mivel az iterátor osztály, a `++` operátor nem feltétlenül a memóriában ezutáni blokkra fog mutatni, tehát **nem memóriában lineárisan tárolt adatokat is be lehet járni** vele.
+
+### Range
+
+A range egy intervallumot fed le egy kezdő és egy végiterátor között: pl.: `adatok` vektornál $[$ `adatok.begin()`; `adatok.end` $[$ egy range. A rangek egy speciális tulajdonsága, hogy lehet speciális rangeket létrehozni új adatok allokálása nélkül: ha van egy $a$ STL tárolónk, tudunk csinálni egy iterátort, ami valamilyen $B$ szabály alapján átugrik pár elemet, tehát extra memória foglalása nélkül tudunk csinálni $a$-ból egy új $b$ range-t, ami $a$ alhalmaza. Ha $a$ konstans, akkor $b$ is, tehát memóriahiba miatt nem kell aggódni.
+
+### View
+
+A view kombinálja az iterátorokat és rangeket: lehet olyan speciális iterátorokat gyártani, amik nem csak az eredeti tárolónak egy alhalmazán megy át, de a bejárási sorrend és irány változtatható, sőt, leképező függvénnyel az aktív elemet át lehet alakítani. Ezt az egészet csak pár byte memóriáért cserébe képesek csinálni. Emellé ha egy konstans tárolón tiszta függvényekkel csináljuk az átalakításunkat, stabilan tudjuk ezeket mind megtenni.
